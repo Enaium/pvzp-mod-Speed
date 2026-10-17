@@ -1,14 +1,17 @@
+import java.io.File
+
 // The mod toolchain of this workspace: applying cn.enaium.fabricpvz.loom supplies the game
 // distribution (the game, the API modules, the real Fabric Loader and Mixin, ASM, SLF4J/Log4j and
 // LWJGL, on the compile, test and launch class paths), Kotlin, the launcher class path and JUnit for
 // the end-to-end test, the runClient task and the publication of the mod jar under mavenLocal
 // coordinates. A mod never declares any of those artifacts by hand; see loom.
 //
-// The version is the plugin's own (every artifact of this workspace is released under 1.0.0); the
-// plugin itself comes from the Gradle Plugin Portal (settings.gradle.kts lists the local fallback
-// used while the first publication is under review, and says when to remove it).
+// The version is the plugin's own (every artifact of this workspace is released under its own
+// version); the plugin itself resolves from the Gradle Plugin Portal, which serves it
+// (settings.gradle.kts lists the portal first and keeps mavenLocal after it as an optional fallback
+// for a version the portal does not serve yet).
 plugins {
-    id("cn.enaium.fabricpvz.loom") version "1.0.0"
+    id("cn.enaium.fabricpvz.loom") version "1.0.1"
 }
 
 dependencies {
@@ -33,14 +36,20 @@ description = "Game-speed mod for the PvZ port: slow / pause / fast buttons belo
  * frame loop and writes what the window shows into {@code run/build/window-dump/} (see
  * {@code cn.enaium.fabricpvz.speedmod.test.SpeedModWindowShot}). Same shape as {@code runClient}, plus
  * the harness class path ({@code -Dpvz.extraClasspath}) and the harness game entry point
- * ({@code -Dpvz.game.mainClass}).
+ * ({@code -Dpvz.game.mainClass}) - which is why the mod's own output is put on the class path here
+ * the same way the toolchain's own task does it (see loom/README.md, "The development run"): the
+ * distribution's jars plus this mod's output directories (only those that exist, evaluated when the
+ * run is configured for execution), as one `fabric.classPathGroups` entry. Without the group the
+ * loader would leave this mod's classes to the parent class loader and the run would die on the
+ * first API call (a class the parent loads cannot see the modules nested inside the API jar).
  */
+val modOutput = sourceSets["main"].output.filter { it.exists() }
+
 tasks.register<JavaExec>("dumpWindow") {
     group = "verification"
     description = "Runs the game with this mod and the real video driver and screenshots the board."
     mainClass = "net.fabricmc.loader.impl.launch.knot.KnotClient"
-    classpath = configurations.getByName("pvzRunClasspath")
-    dependsOn(tasks.named("pvzModsJar"))
+    classpath = configurations.getByName("pvzRunClasspath") + modOutput
     // The harness (the game entry point the launcher is pointed at) is this project's test classes.
     dependsOn(tasks.named("testClasses"))
     val runDirectory = layout.projectDirectory.dir("run").asFile
@@ -49,6 +58,9 @@ tasks.register<JavaExec>("dumpWindow") {
     jvmArgs("-Dpvz.gameDir=${runDirectory.absolutePath}")
     jvmArgs("-Dfabric.skipMcProvider=true")
     jvmArgs("-Dfabric.development=true")
+    // An argument provider rather than a `jvmArgs` line: it reads the same lazily filtered
+    // collection the class path is made of, i.e. at execution time, when those directories exist.
+    jvmArgumentProviders.add { listOf("-Dfabric.classPathGroups=" + modOutput.files.joinToString(File.pathSeparator)) }
     jvmArgs("--enable-native-access=ALL-UNNAMED")
     // The harness lives in this project's test classes, which are not part of the launcher's own
     // class path: the provider adds them to the loader's class loader (-Dpvz.extraClasspath).

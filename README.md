@@ -125,8 +125,10 @@ answers "no" while a dialog is open).
 ```
 
 The build file is the workspace's mod toolchain plugin plus the coordinates
-(`plugins { id("cn.enaium.fabricpvz.loom") version "1.0.0" }`): the plugin, from the Gradle Plugin
-Portal (so nothing has to be published locally first), supplies the real Fabric
+(`plugins { id("cn.enaium.fabricpvz.loom") version "1.0.1" }`): the plugin resolves from the Gradle
+Plugin Portal, which serves that version (`(cd ../loom && ./gradlew publishPlugins)`); the settings
+file keeps `mavenLocal()` after the portal only as a fallback for a version the portal does not
+serve yet. It supplies the real Fabric
 Loader, Mixin, ASM, the API and the game on the compile class path, applies the Kotlin JVM plugin
 (compiling `src/main/kotlin` at the game's class file version, with `kotlin-stdlib` `compileOnly`
 because `fabric-language-kotlin` provides it at runtime), so this project declares no dependency by
@@ -175,7 +177,7 @@ cp build/libs/speed-mod-1.0.0.jar /path/to/PvZ-Portable/run/mods/
 ```
 
 The API it depends on travels as **one** jar - `fabric-api-1.0.0.jar`, whose nested jars under
-`META-INF/jars/` are the four modules (`api-events` among them; see `loom/README.md`,
+`META-INF/jars/` are the five modules (`api-events` among them; see `loom/README.md`,
 "Jar-in-jar") - so that is the second file of an installation, and the game's own zip ships none
 (a player creates `mods/` and fills it).
 
