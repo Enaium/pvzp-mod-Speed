@@ -125,7 +125,7 @@ answers "no" while a dialog is open).
 ```
 
 The build file is the workspace's mod toolchain plugin plus the coordinates
-(`plugins { id("cn.enaium.fabricpvz.loom") version "1.0.1" }`): the plugin resolves from the Gradle
+(`plugins { id("cn.enaium.fabricpvz.loom") version "1.0.5" }`): the plugin resolves from the Gradle
 Plugin Portal, which serves that version (`(cd ../loom && ./gradlew publishPlugins)`); the settings
 file keeps `mavenLocal()` after the portal only as a fallback for a version the portal does not
 serve yet. It supplies the real Fabric
