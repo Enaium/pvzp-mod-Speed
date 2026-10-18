@@ -30,7 +30,7 @@ import cn.enaium.fabricpvz.provider.PvzGameProvider;
  * <p>The test does exactly what a launcher does: it copies the <em>built mod jar</em> into a real
  * {@code mods/} directory and starts {@code net.fabricmc.loader.impl.launch.knot.KnotClient} in a
  * second JVM with the game, the loader (plus Mixin and ASM, pulled in by
- * {@code cn.enaium.fabricpvz:fabric-provider}) and the API modules on the class path. The loader
+ * the game jar carries) and the API modules on the class path. The loader
  * resolves the mod, runs its {@code ModInitializer}, registers its Mixin configuration and only then
  * calls the game entry point, which this test redirects to
  * {@link cn.enaium.fabricpvz.speedmod.test.SpeedModGameMain} with {@code -Dpvz.game.mainClass}.
@@ -372,7 +372,7 @@ class SpeedModEndToEndTest {
         assertTrue(entries.contains("cn/enaium/fabricpvz/speedmod/mixin/BoardMouseMixin.class"));
         // The mod's classes are Kotlin (compiled by this project's Kotlin compilation, whose module
         // metadata the jar carries), the Kotlin standard library is not: it is a launcher library
-        // here (fabric-provider publishes it), shared by every Kotlin mod of an installation.
+        // here (the game's launch libraries publish it), shared by every Kotlin mod of an installation.
         assertTrue(entries.stream().anyMatch(name -> name.startsWith("META-INF/") && name.endsWith(".kotlin_module")),
                 "the jar must carry the Kotlin compilation metadata of the mod's own sources, got " + entries);
         assertTrue(entries.stream().noneMatch(name -> name.startsWith("kotlin/")),

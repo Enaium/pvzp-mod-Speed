@@ -5,7 +5,7 @@ below the game's own **Menu** button, that set the game to **0.5x - 3x** or paus
 
 It is a plain Fabric mod: `fabric.mod.json`, a `ModInitializer`, two small Mixins, and a jar that is
 loaded from `<gamedir>/mods` by the real Fabric Loader through
-`cn.enaium.fabricpvz:fabric-provider` (the loader's `GameProvider` for this port).
+the game provider the game jar itself carries (`cn.enaium.fabricpvz.provider`).
 
 The mod's own code is **Kotlin** (`src/main/kotlin`, compiled by the workspace toolchain plugin); the
 two Mixins stay Java (`src/main/java/.../mixin`), because a Mixin configuration is a Java class
@@ -13,7 +13,7 @@ annotated with `@Mixin` and Mixin's own processor reads it as such. The end-to-e
 too. The Kotlin side keeps the entry point a `class` with a no-argument constructor - Fabric Loader
 instantiates a `ModInitializer` reflectively, which a Kotlin `object` (private constructor) could not
 satisfy without a language adapter this workspace does not ship. The Kotlin standard library is a
-launcher library (`fabric-provider` puts one copy on the launch class path), so the mod jar carries
+launcher library (the game's launch libraries put one copy on the launch class path), so the mod jar carries
 its own classes and resources only - never `kotlin/`.
 
 | mod id | version | entry point |
@@ -183,7 +183,7 @@ The API it depends on travels as **one** jar - `fabric-api-1.0.0.jar`, whose nes
 
 The game is launched by the real Fabric Loader through
 `net.fabricmc.loader.impl.launch.knot.KnotClient` together with
-`cn.enaium.fabricpvz:fabric-provider`, which registers the game as a built-in mod; the loader
+the game provider, which registers the game as a built-in mod; the loader
 discovers the jar at startup and runs `SpeedMod::onInitialize`. With the mod absent the game runs
 exactly as it does today.
 
