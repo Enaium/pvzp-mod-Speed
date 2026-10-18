@@ -16,15 +16,16 @@ import org.slf4j.LoggerFactory
  * this mod requires, and the one whose nested kotlin-stdlib is the runtime the whole mod links
  * against).
  *
- * The mod is one speed setting ([GameSpeed]) plus the three controls that change it
- * ([SpeedControls]). Everything else is two hooks:
+ * The mod is one speed setting ([GameSpeed]) plus the four controls that change it
+ * ([SpeedControls]). Everything else is three hooks:
  *
  * - **drawing**: [LawnEvents.POST_DRAW], the game's own "the board finished drawing itself" call
  *   point (`BoardRender.draw` dispatches it after the object passes, which includes the top-right
- *   menu button the controls sit under). No mixin is needed for the picture.
- * - **input and the update rate**: the two mixins of `speedmod.mixin`, because the modding API
- *   deliberately exposes no hooks for "this click was consumed" and for "how many game updates does
- *   this frame run".
+ *   menu button and the progress meter the controls sit beside). No mixin is needed for the picture.
+ * - **input and the update rate**: the three mixins of `speedmod.mixin`, because the modding API
+ *   deliberately exposes no hooks for "this click was consumed", "this key was handled" and "how
+ *   many game updates does this frame run". `BoardKeyMixin` is the one that makes space the mod's
+ *   pause instead of the game's pause dialog.
  *
  * [controlsOf] is the read-only lookup the input mixin uses: a board that was never drawn has no
  * controls, and a click on it must therefore reach the board untouched.
@@ -45,7 +46,7 @@ class SpeedMod : ModInitializer {
         LawnEvents.POST_DRAW.register(
             LawnEvents.PostDraw { theBoard, theGraphics -> drawControls(theBoard, theGraphics) },
         )
-        LOGGER.info("speed controls registered (0.5x - 3x, below the menu button)")
+        LOGGER.info("speed controls registered (0.5x - 3x, left of the progress meter)")
         LOGGER.info(kotlinGreeting)
     }
 

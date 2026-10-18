@@ -11,7 +11,7 @@ import java.io.File
 // (settings.gradle.kts lists the portal first and keeps mavenLocal after it as an optional fallback
 // for a version the portal does not serve yet).
 plugins {
-    id("cn.enaium.fabricpvz.loom") version "1.0.5"
+    id("cn.enaium.fabricpvz.loom") version "1.0.9"
 }
 
 dependencies {
@@ -25,12 +25,12 @@ dependencies {
     // against which game this mod was built. While working on the game's own code, point it at the
     // distribution that build writes instead (pvz(files("../PvZ-Portable/build/distributions")) or
     // pvz(files("../PvZ-Portable/build/mcversion/PvZ-Portable-<version>"))).
-    pvz("cn.enaium.fabricpvz:pvz-portable:1.2.1")
+    pvz("cn.enaium.fabricpvz:pvz-portable:1.2.5")
 }
 
 group = "cn.enaium.fabricpvz"
-version = "1.0.0"
-description = "Game-speed mod for the PvZ port: slow / pause / fast buttons below the in-game menu button"
+version = "1.1.0"
+description = "Game-speed mod for the PvZ port: the slow / pause / fast buttons and the speed readout in two rows below the in-game menu button, plus space to pause"
 
 /**
  * The visual smoke check of the mod: boots the game through the real Fabric Loader (so the mod's

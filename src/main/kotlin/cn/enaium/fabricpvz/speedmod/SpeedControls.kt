@@ -4,19 +4,20 @@ import cn.enaium.fabricpvz.portable.lawn.Board
 import cn.enaium.fabricpvz.portable.lawn.ImageID
 import cn.enaium.fabricpvz.portable.lawn.Resources
 import cn.enaium.fabricpvz.portable.lawn.widget.GameButton
+import cn.enaium.fabricpvz.portable.sexy.Color
 import cn.enaium.fabricpvz.portable.sexy.Rect
+import cn.enaium.fabricpvz.portable.sexy.graphics.Font
 import cn.enaium.fabricpvz.portable.sexy.graphics.Graphics
-import cn.enaium.fabricpvz.portable.sexy.graphics.Image
+import kotlin.math.floor
 import kotlin.math.max
 
 /**
- * The three in-game speed buttons and the readout below them, drawn with the game's own [GameButton]
- * stone rendering so they look like the menu button they sit under.
+ * The speed readout and the three speed buttons, drawn with the game's own [GameButton] stone
+ * rendering so they look like the menu button.
  *
- * Geometry is derived from the board's own menu button on every use ([layout]), so the controls
- * follow the menu button in every game mode (the zen garden and the upsell move it and add a store
- * button above them) and during the zen fade that slides it off screen. The row is aligned to the
- * menu button's right edge and sits directly below the lowest of the menu/store buttons.
+ * The controls sit in two rows below the board's menu button (and below the store button when one
+ * is drawn), right-aligned to the menu button's drawn right edge and drawn at 0.75 scale: row one
+ * is `slow fast` (`<` `>`), row two is `pause readout` (`=` `1.0x`).
  *
  * ## Input
  *
@@ -27,8 +28,18 @@ import kotlin.math.max
  * [GameButton.isMouseOver] already answers "no" while a dialog is open, so the controls behave like
  * the game's own in-board buttons with respect to dialogs.
  *
- * The class's companion is reached through its instance - Kotlin as `SpeedControls.panelWidth(2)`, the
- * Java side as `SpeedControls.Companion.panelWidth(2)` - so no member of this class is a Java static.
+ * ## Drawing at 0.75 scale
+ *
+ * The game's stone art is drawn by [GameButton.drawStoneButton] at its own size (71x46, 117x46, ...),
+ * ignoring the requested height. The panels are therefore drawn with the art's unscaled size under a
+ * 0.75 graphics scale whose origin is the panel's own top-left corner, which turns the 71x46 button
+ * into 53x34 and the 117x46 readout into 87x34. A scaled [Graphics] only scales image drawing, not
+ * strings, so the labels are drawn by this class inside the scaled rectangles with the same
+ * green-inset font the stone button uses.
+ *
+ * The class has no Java statics: Java reaches it as `SpeedControls.Companion` only where the
+ * companion exposes something, and the board, the mixins and the tests otherwise go through the
+ * instance returned by `SpeedMod.controls()`.
  */
 class SpeedControls internal constructor(private val mBoard: Board) {
 
@@ -59,11 +70,7 @@ class SpeedControls internal constructor(private val mBoard: Board) {
             aButton.mApp = mBoard.mApp
             aButton.mParentWidget = mBoard
             aButton.mDrawStoneButton = true
-            aButton.mLabel = when (aButton.mId) {
-                0 -> SLOW_LABEL
-                1 -> PAUSE_LABEL
-                else -> FAST_LABEL
-            }
+            aButton.mLabel = labelOf(aButton)
         }
 
         layout()
@@ -76,44 +83,42 @@ class SpeedControls internal constructor(private val mBoard: Board) {
     fun isVisible(): Boolean = !mBoard.mMenuButton.mBtnNoDraw
 
     /**
-     * Places the three buttons in one row under the board's current menu button (and under the store
-     * button of the modes that draw one), with the multiplier readout centred underneath them.
-     * Everything is derived from the game's own stone art ([panelWidth], [panelHeight]) and from the
-     * menu button's drawn right edge, so no panel can overlap another and no panel's art can reach
-     * into the button above it.
+     * Places the controls in two rows below the board's menu button (and below the store button
+     * when one is drawn), right-aligned to the menu button's drawn right edge:
      *
-     * The row is right-aligned to the menu button and reads left to right as `slow, pause, fast`; the
-     * readout sits one gap below it, centred on the row.
+     * - row one: the slow and fast buttons (`<` `>`);
+     * - row two: the pause button and the multiplier readout (`=` `1.0x`).
+     *
+     * All four panels have the scaled art size: 53x34 for a button, 87x34 for the readout.
      */
     private fun layout() {
+        val aHeight = scaledSize(panelHeight())
+        val aButtonWidth = scaledSize(panelWidth(BUTTON_MIDDLE_SLICES))
+        val aReadoutWidth = scaledSize(panelWidth(READOUT_MIDDLE_SLICES))
+
         val aMenu = mBoard.mMenuButton
-        // The 9-slice can be narrower than the rectangle the game asked for (a 117-wide button draws
-        // 117, but a 120-wide one also draws 117): align to what is drawn, not to the request.
+        // The 9-slice can be narrower than the rectangle the game asked for (a 117-wide button
+        // draws 117, but a 120-wide one also draws 117): align to what is drawn, not to the request.
         val aRight = aMenu.mX + drawnWidth(aMenu.mWidth)
-        val aHeight = panelHeight()
         var aTop = max(aMenu.mY + aMenu.mHeight, aMenu.mY + aHeight) + ROW_GAP
         val aStore = mBoard.mStoreButton
         if (aStore != null && !aStore.mBtnNoDraw) {
             aTop = max(aTop, aStore.mY + max(aStore.mHeight, aHeight) + ROW_GAP)
         }
 
-        val aButtonWidth = panelWidth(BUTTON_MIDDLE_SLICES)
-        val aReadoutWidth = panelWidth(READOUT_MIDDLE_SLICES)
-        var aX = aRight - aButtonWidth
-        mFastButton.resize(aX, aTop, aButtonWidth, aHeight)
-        aX -= GAP + aButtonWidth
-        mPauseButton.resize(aX, aTop, aButtonWidth, aHeight)
-        aX -= GAP + aButtonWidth
-        mSlowButton.resize(aX, aTop, aButtonWidth, aHeight)
-        // The readout sits under the button row, centred on it: the buttons stay right-aligned to the
-        // menu button (so the row is clear of the stone art above) and the value reads directly below
-        // them, one ROW_GAP below their drawn bottom edge.
-        val aRowLeft = aX
-        val aRowWidth = aRight - aRowLeft
-        mReadoutX = aRowLeft + (aRowWidth - aReadoutWidth) / 2
-        mReadoutY = aTop + aHeight + ROW_GAP
+        // Row one, left to right: slow, fast.
+        var anX = aRight - aButtonWidth
+        mFastButton.resize(anX, aTop, aButtonWidth, aHeight)
+        anX -= GAP + aButtonWidth
+        mSlowButton.resize(anX, aTop, aButtonWidth, aHeight)
+
+        // Row two, left to right: pause, readout.
+        val aSecondRowTop = aTop + aHeight + ROW_GAP
+        mReadoutX = aRight - aReadoutWidth
+        mReadoutY = aSecondRowTop
         mReadoutWidth = aReadoutWidth
         mReadoutHeight = aHeight
+        mPauseButton.resize(mReadoutX - GAP - aButtonWidth, aSecondRowTop, aButtonWidth, aHeight)
     }
 
     /** The four on-screen rectangles in board coordinates: the three buttons and the readout. */
@@ -127,19 +132,69 @@ class SpeedControls internal constructor(private val mBoard: Board) {
         )
     }
 
-    /** Draws the three buttons and the multiplier readout; called from the board's draw pass. */
+    /** The labels the three buttons currently show, in click order (slow, pause, fast). */
+    fun labels(): Array<String> = arrayOf(SLOW_LABEL, pauseLabel(), FAST_LABEL)
+
+    /** Draws the readout and the three buttons; called from the board's draw pass. */
     fun draw(theGraphics: Graphics) {
         layout()
-        mPauseButton.mLabel = if (GameSpeed.get().paused()) RESUME_LABEL else PAUSE_LABEL
-        mSlowButton.draw(theGraphics)
-        mPauseButton.draw(theGraphics)
-        mFastButton.draw(theGraphics)
-        // The game's own stone label rendering, so the readout matches the buttons around it; the
-        // panel is exactly the size the 9-slice draws, which is what centres the label inside it.
-        GameButton.drawStoneButton(
+        mSlowButton.mLabel = SLOW_LABEL
+        mPauseButton.mLabel = pauseLabel()
+        mFastButton.mLabel = FAST_LABEL
+
+        drawPanel(
+            theGraphics, mSlowButton.mX, mSlowButton.mY, mSlowButton.mWidth, mSlowButton.mHeight,
+            panelWidth(BUTTON_MIDDLE_SLICES), panelHeight(),
+            mSlowButton.isButtonDown, mSlowButton.isMouseOver, mSlowButton.mLabel,
+        )
+        drawPanel(
+            theGraphics, mPauseButton.mX, mPauseButton.mY, mPauseButton.mWidth, mPauseButton.mHeight,
+            panelWidth(BUTTON_MIDDLE_SLICES), panelHeight(),
+            mPauseButton.isButtonDown, mPauseButton.isMouseOver, mPauseButton.mLabel,
+        )
+        drawPanel(
+            theGraphics, mFastButton.mX, mFastButton.mY, mFastButton.mWidth, mFastButton.mHeight,
+            panelWidth(BUTTON_MIDDLE_SLICES), panelHeight(),
+            mFastButton.isButtonDown, mFastButton.isMouseOver, mFastButton.mLabel,
+        )
+        drawPanel(
             theGraphics, mReadoutX, mReadoutY, mReadoutWidth, mReadoutHeight,
+            panelWidth(READOUT_MIDDLE_SLICES), panelHeight(),
             false, false, GameSpeed.get().display(),
         )
+    }
+
+    /**
+     * Draws one stone panel at [SCALE] and its label at full size.
+     *
+     * The art is drawn at its own unscaled size under a scale whose origin is the panel's top-left
+     * corner, so the panel's drawn position is its rectangle; the string is not affected by the
+     * graphics scale and is centred in the scaled rectangle here.
+     */
+    private fun drawPanel(
+        theGraphics: Graphics,
+        theX: Int,
+        theY: Int,
+        theWidth: Int,
+        theHeight: Int,
+        theArtWidth: Int,
+        theArtHeight: Int,
+        theDown: Boolean,
+        theHighlighted: Boolean,
+        theLabel: String,
+    ) {
+        theGraphics.setScale(SCALE, SCALE, theX.toFloat(), theY.toFloat())
+        GameButton.drawStoneButton(
+            theGraphics, theX, theY, theArtWidth, theArtHeight, theDown, theHighlighted, "",
+        )
+        theGraphics.setScale(1f, 1f, 0f, 0f)
+
+        val aFont = labelFont(theHighlighted)
+        theGraphics.setFont(aFont)
+        theGraphics.setColor(Color.White)
+        val aLabelX = theX + (theWidth - aFont.stringWidth(theLabel)) / 2
+        val aLabelY = theY + (theHeight - aFont.ascent) / 2 + aFont.ascent
+        theGraphics.drawString(theLabel, aLabelX, aLabelY)
     }
 
     /** The button whose rectangle contains the point, or null. */
@@ -206,51 +261,53 @@ class SpeedControls internal constructor(private val mBoard: Board) {
         mPressed = null
     }
 
+    /** The label a button shows right now: the pause button flips to the resume arrow while paused. */
+    private fun labelOf(theButton: GameButton): String = when (theButton.mId) {
+        0 -> SLOW_LABEL
+        1 -> pauseLabel()
+        else -> FAST_LABEL
+    }
+
+    private fun pauseLabel(): String = if (GameSpeed.get().paused()) RESUME_LABEL else PAUSE_LABEL
+
+    private fun labelFont(theHighlighted: Boolean): Font = Resources.getFontById(
+        if (theHighlighted) {
+            Resources.FONT_DWARVENTODCRAFT18BRIGHTGREENINSET_ID
+        } else {
+            Resources.FONT_DWARVENTODCRAFT18GREENINSET_ID
+        },
+    )
+
     companion object {
 
         /**
          * Middle slices of the stone 9-slice per panel. The retail art is left 36x46, middle 46x46,
-         * right 35x46 (`GameButton.drawStoneButton`, GameButton.java:41-79), and the game draws
-         * `left + n*middle + right` pixels wide - so a panel is either 71 wide (no middle slice) or
-         * 117, 163, 209 ... No other width exists, and the drawn height is always the art's 46. The
-         * panel's rectangle and the drawn art are therefore the same rectangle, which is what keeps
-         * the panels from overlapping each other and the labels centred inside what is drawn.
+         * right 35x46 (`GameButton.drawStoneButton`, GameButton.java:41-79), so a panel is 71 wide
+         * with no middle slice and 117 wide with one. The drawn height is always the art's 46.
          */
         private const val BUTTON_MIDDLE_SLICES = 0
 
-        private const val READOUT_MIDDLE_SLICES = 2
+        private const val READOUT_MIDDLE_SLICES = 1
 
-        /** Space between two panels. */
-        private const val GAP = 4
+        /** The scale the whole row is drawn at (0.75 of the stone art). */
+        private const val SCALE = 0.75f
 
-        /** Space between the menu/store button and the row of controls. */
+        /** Space between two panels, in screen pixels (the scaled geometry). */
+        private const val GAP = 6
+
+        /** Space between the menu/store button and the row in the fallback placement. */
         private const val ROW_GAP = 4
 
-        private const val SLOW_LABEL = "<<"
+        private const val SLOW_LABEL = "<"
 
-        // The stone label font is a retail bitmap font with a limited glyph set: "|" is not in it (the
-        // label then measures zero wide and nothing is drawn), capital "I" is.
         private const val PAUSE_LABEL = "="
 
         private const val RESUME_LABEL = ">"
 
-        private const val FAST_LABEL = ">>"
+        private const val FAST_LABEL = ">"
 
-        /** The stone art the game draws its own buttons with; all three slices are 46 pixels tall. */
-        private fun slice(theImageId: Int): Image = Resources.getImageById(theImageId)
-
-        private fun leftSliceWidth(): Int = slice(ImageID.IMAGE_BUTTON_LEFT).width
-
-        private fun middleSliceWidth(): Int = slice(ImageID.IMAGE_BUTTON_MIDDLE).width
-
-        private fun rightSliceWidth(): Int = slice(ImageID.IMAGE_BUTTON_RIGHT).width
-
-        /**
-         * The height every stone panel is drawn at: the 9-slice draws its images at their own size and
-         * ignores the requested height (`GameButton.drawStoneButton` only uses it to place the label),
-         * so a panel is as tall as the art.
-         */
-        fun panelHeight(): Int = slice(ImageID.IMAGE_BUTTON_MIDDLE).height
+        /** The height every stone panel is drawn at before scaling: the 9-slice's own art height. */
+        private fun panelHeight(): Int = Resources.getImageById(ImageID.IMAGE_BUTTON_MIDDLE).height
 
         /**
          * The width the game's 9-slice really draws for a panel requested to be `theWidth` wide:
@@ -258,13 +315,22 @@ class SpeedControls internal constructor(private val mBoard: Board) {
          * rounded down to whole middle slices, so a requested width is only a drawn width when it is
          * exactly `left + n*middle + right` - [panelWidth] is.
          */
-        fun drawnWidth(theWidth: Int): Int {
+        private fun drawnWidth(theWidth: Int): Int {
             val aRepeat = (theWidth - leftSliceWidth() - rightSliceWidth()) / middleSliceWidth()
             return leftSliceWidth() + max(0, aRepeat) * middleSliceWidth() + rightSliceWidth()
         }
 
         /** A width the 9-slice draws in full: `left + middleSlices*middle + right`. */
-        fun panelWidth(theMiddleSlices: Int): Int =
+        private fun panelWidth(theMiddleSlices: Int): Int =
             leftSliceWidth() + max(0, theMiddleSlices) * middleSliceWidth() + rightSliceWidth()
+
+        private fun leftSliceWidth(): Int = Resources.getImageById(ImageID.IMAGE_BUTTON_LEFT).width
+
+        private fun middleSliceWidth(): Int = Resources.getImageById(ImageID.IMAGE_BUTTON_MIDDLE).width
+
+        private fun rightSliceWidth(): Int = Resources.getImageById(ImageID.IMAGE_BUTTON_RIGHT).width
+
+        /** A panel dimension at the row's scale: the drawn art size rounded down. */
+        private fun scaledSize(theSize: Int): Int = floor(theSize * SCALE).toInt()
     }
 }

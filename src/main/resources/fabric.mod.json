@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "id": "speed-mod",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "name": "PvZ Speed Mod",
-  "description": "Game-speed control for the PvZ port: three buttons below the top-right menu button set the game to 0.5x - 3x or pause it.",
+  "description": "Game-speed control for the PvZ port: the slow / pause / fast buttons and the speed readout in two rows below the top-right menu button set the game to 0.5x - 3x or pause it.",
   "authors": [
-    "FabricPvZ"
+    "Enaium"
   ],
   "license": "MIT",
   "environment": "client",
