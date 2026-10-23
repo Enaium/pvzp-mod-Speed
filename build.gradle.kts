@@ -8,11 +8,10 @@ import java.io.File
 // is declared below, with the version this build was made with.
 //
 // The version is the plugin's own (every artifact of this workspace is released under its own
-// version); the plugin resolves from the Gradle Plugin Portal, with mavenLocal after it as the
-// fallback until the portal serves 1.0.14 (see settings.gradle.kts).
+// version); the plugin resolves from the Gradle Plugin Portal.
 
 plugins {
-    id("cn.enaium.fabricpvz.loom") version "1.0.14"
+    id("cn.enaium.fabricpvz.loom") version "1.0.15"
     // Kotlin 2.4 is the first release line that accepts jvmTarget 25 and reads the game's Java 25
     // class files, i.e. the one this mod's sources are compiled with and the one its stdlib is.
     kotlin("jvm") version "2.4.21"
@@ -47,23 +46,23 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     // The language module this Kotlin mod runs on. One jar, whose nested kotlin-stdlib is the runtime
-    // the loader provides; not transitive, because the loader, Mixin, ASM and the logging stack of a
-    // launch class path are the distribution's jars and the module's POM would put a second Fabric
-    // Loader on it ("duplicate fabric loader classes found on classpath").
-    testRuntimeOnly(languageKotlin) { isTransitive = false }
-    (add("pvzRunClasspath", languageKotlin) as ModuleDependency).isTransitive = false
+    // the loader provides: `implementation` puts it on this mod's runtime class path (which
+    // `runClient` launches), `testRuntimeOnly` on the test fork's. Its POM's Fabric Loader dependency
+    // is the one the game distribution names as well, so the launch class path resolves a single
+    // copy of it, and the Kotlin runtime jars Gradle resolves for this build are kept off both
+    // launch class paths (the loader provides the stdlib through the language module).
+    implementation(languageKotlin)
+    testRuntimeOnly(languageKotlin)
 
     // The API this mod uses: the aggregate jar, whose nested jars are the five feature modules.
     // Compilation carries the modules through its POM (javac and kotlinc read jar files, not jars
-    // nested inside a jar); at runtime the aggregate alone is used, because Fabric Loader reads the
-    // nested jars out of it. `testCompileOnly` because a test source set does not inherit
-    // `compileOnly`.
-    for (configuration in listOf("compileOnly", "testCompileOnly")) {
-        add(configuration, fabricApi)
-    }
-    for (configuration in listOf("testImplementation", "pvzRunClasspath")) {
-        (add(configuration, fabricApi) as ModuleDependency).isTransitive = false
-    }
+    // nested inside a jar); `include` embeds the aggregate in this mod's jar - an installation has
+    // one jar to drop into `mods/`, because the loader reads the modules nested in it - and puts it
+    // on the run class path. `testCompileOnly` because a test source set does not inherit
+    // `compileOnly`; the end-to-end test loads the built jar, whose nested API the loader resolves.
+    compileOnly(fabricApi)
+    testCompileOnly(fabricApi)
+    include(fabricApi)
 }
 
 group = "cn.enaium.fabricpvz"
@@ -89,7 +88,9 @@ tasks.register<JavaExec>("dumpWindow") {
     group = "verification"
     description = "Runs the game with this mod and the real video driver and screenshots the board."
     mainClass = "net.fabricmc.loader.impl.launch.knot.KnotClient"
-    classpath = configurations.getByName("pvzRunClasspath") + modOutput
+    // The launch class path the toolchain composes for runClient: the game distribution plus this
+    // mod's runtime class path and its `include` jars.
+    classpath = tasks.named<JavaExec>("runClient").get().classpath
     // The harness (the game entry point the launcher is pointed at) is this project's test classes.
     dependsOn(tasks.named("testClasses"))
     val runDirectory = layout.projectDirectory.dir("run").asFile

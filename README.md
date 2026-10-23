@@ -134,15 +134,16 @@ so every case the game does not pause on is left to the game.
 
 ## Prerequisites
 
-This mod runs on [PvZ-Portable](https://github.com/FabricPvZ/pvz-portable) and needs two more mods next to it:
+This mod runs on [PvZ-Portable](https://github.com/FabricPvZ/pvz-portable) and needs one more mod next to it:
 
 - **PvZ-Portable** - the engine (the game itself). The repository: <https://github.com/FabricPvZ/pvz-portable>.
 - **fabric-language-kotlin** - this mod is written in Kotlin and carries no Kotlin runtime of its own.
   Download: [Modrinth](https://modrinth.com/mod/fabric-language-kotlin) ·
   [CurseForge](https://www.curseforge.com/minecraft/mc-mods/fabric-language-kotlin) ·
   [Fabric's maven](https://maven.fabricmc.net/net/fabricmc/fabric-language-kotlin/).
-- **fabric-api** (this workspace's API) - the events the controls and the pause are built on.
-  Download: the [GitHub releases](https://github.com/FabricPvZ/fabric-api/releases).
+
+The workspace's API (the events the controls and the pause are built on) is carried **inside this
+mod's jar**, so nothing else has to be installed.
 
 ## Installing into the game
 
@@ -152,10 +153,10 @@ Drop the jar into the game directory's `mods/`, e.g.:
 cp build/libs/speed-mod-1.1.0.jar /path/to/PvZ-Portable/run/mods/
 ```
 
-The API it depends on travels as **one** jar - `fabric-api-1.2.1.jar`, whose nested jars under
-`META-INF/jars/` are the five modules (`api-events` among them; see `loom/README.md`,
-"Jar-in-jar") - so that is the second file of an installation, and the game's own zip ships none
-(a player creates `mods/` and fills it).
+This mod's jar carries the API it uses: `META-INF/jars/fabric-api-1.2.2.jar` sits inside it, with
+the API's five modules nested in that aggregate (`api-events` among them; see `loom/README.md`,
+"Jar-in-jar"), and Fabric Loader reads both levels. The game's own zip ships no mods: a player
+creates `mods/` and fills it with this jar and `fabric-language-kotlin`.
 
 The game is launched by the real Fabric Loader through
 `net.fabricmc.loader.impl.launch.knot.KnotClient` together with

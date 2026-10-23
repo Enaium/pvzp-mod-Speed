@@ -1,11 +1,7 @@
 pluginManagement {
     repositories {
         // The mod toolchain plugin (cn.enaium.fabricpvz.loom) comes from the Gradle Plugin Portal.
-        // mavenLocal comes after it as the fallback for 1.0.14, which the portal does not serve yet:
-        // `(cd ../loom && ./gradlew publishToMavenLocal)` publishes it there. A version the portal
-        // serves always resolves from the portal, so the fallback can be dropped once 1.0.14 is on it.
         gradlePluginPortal()
-        mavenLocal()
         mavenCentral()
     }
 }
